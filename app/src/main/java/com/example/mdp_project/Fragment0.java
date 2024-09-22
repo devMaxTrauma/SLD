@@ -3,23 +3,26 @@ package com.example.mdp_project;
 import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 
 import androidx.fragment.app.Fragment;
 
-// 1. viewPager2를 삭제해본다.<MainActivity/ 챗gpt>
 public class Fragment0 extends Fragment {
     View view;
     Button button;
     Vibrator vr;
-    int flag = 1;
-    long[] pattern = {2000, 1000, 2000, 1000};
-    int[] amplitudes = {50, 5, 50, 5};
+    int flag = 0;
+    long[] pattern = {600, 1100, 800, 1100};
+    int[] amplitudes = {0, 50, 0, 50};
+    private Handler handler;
+    private Runnable myRunnable;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -30,49 +33,73 @@ public class Fragment0 extends Fragment {
         ViewGroup viewGroup = (ViewGroup) inflater.inflate(R.layout.fragment_0, container, false);
         button = viewGroup.findViewById(R.id.button2);
         view = viewGroup.findViewById(R.id.view);
-        vr = (Vibrator)getContext().getSystemService(Context.VIBRATOR_SERVICE);
+        vr = (Vibrator) getContext().getSystemService(Context.VIBRATOR_SERVICE);
+        button.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                MainActivity.sendSignal("b");
+                flag = 1;
+                if (Build.VERSION.SDK_INT >= 26) {
+                    vr.vibrate(VibrationEffect.createWaveform(pattern, amplitudes, 0));
+                }
+                return true;
+            }
+        });
+        handler = new Handler();
+        myRunnable = new Runnable() {
+            @Override
+            public void run() {
+                MainActivity.sendSignal("normal");
+            }
+        };
+
+        button.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_UP) {
+                    if (flag == 1) {
+                        MainActivity.sendSignal("c");
+                        vr.cancel();
+                        flag = 0;
+                    }
+                }
+                return false;
+            }
+        });
+
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                flag = flag * -1;
-                if (flag == -1) {
-                    MainActivity.sendSignal("a");
-                    if (Build.VERSION.SDK_INT >= 26) {
-                        vr.vibrate(VibrationEffect.createWaveform(pattern, amplitudes, 0));
-                    } else {
-                        vr.vibrate(1000);
-                    }
-                }
-                else if(flag == 1){
-                    vr.cancel();
-                    flag = 1;
+                MainActivity.sendSignal("a");
+                if (Build.VERSION.SDK_INT >= 26) {
+                    vr.vibrate(VibrationEffect.createWaveform(pattern, amplitudes, -1));
+                } else {
+                    vr.vibrate(1000);
                 }
             }
         });
-        flag = 1;
         return viewGroup;
     }
-//    public void send(int data){
-//        try {
-//            Toast.makeText(getActivity(), "소켓 연결 완료.", Toast.LENGTH_SHORT).show();
-//
-//            ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
-//            outputStream.writeObject(data);
-//            outputStream.flush();
-//            Toast.makeText(getActivity(), "데이터 전송 완료.", Toast.LENGTH_SHORT).show();
-//
-//            ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream());
-//            Toast.makeText(getActivity(), "서버로부터 받음"+inputStream.readObject(), Toast.LENGTH_SHORT).show();
-////            socket.close();
-//        } catch (Exception ex){
-//            ex.printStackTrace();
-//        }
-//    }
+
     public void onDestroyView() {
         super.onDestroyView();
         if (vr != null) {
             vr.cancel();
             flag = 1;
         }
+        handler.removeCallbacks(myRunnable);
+    }
+
+    public void onResume() {
+        super.onResume();
+        // 프래그먼트가 화면에 보일 때 실행되는 코드
+        handler.postDelayed(myRunnable, 5000);  // 즉시 실행
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // 프래그먼트가 화면에서 사라질 때 실행 중인 작업 중지
+        handler.removeCallbacks(myRunnable);
     }
 }
